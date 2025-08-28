@@ -44,7 +44,6 @@
 <script>
 let scene, camera, renderer;
 let keys = {};
-let animationRunning = false;
 
 document.getElementById("newGame").onclick = () => {
   document.getElementById("menu").style.display = "none";
@@ -54,23 +53,28 @@ document.getElementById("newGame").onclick = () => {
 function startGame() {
   // сцена
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xcccccc);
+  scene.background = new THREE.Color(0x999999);
 
   // камера
   camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 1.6, 5); // как будто игрок стоит
+  camera.position.set(0, 1.6, 5); // глаза игрока
 
   // рендер
   renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // свет
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(5,10,7).normalize();
-  scene.add(light);
-  const ambient = new THREE.AmbientLight(0x404040);
+  // 🔥 СВЕТ
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6); // общий свет
   scene.add(ambient);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(5, 10, 7);
+  scene.add(dirLight);
+
+  const pointLight = new THREE.PointLight(0xffffff, 1, 30);
+  pointLight.position.set(0, 5, 0);
+  scene.add(pointLight);
 
   // пол
   const floorGeo = new THREE.PlaneGeometry(20,20);
@@ -79,13 +83,13 @@ function startGame() {
   floor.rotation.x = -Math.PI/2;
   scene.add(floor);
 
-  // стены (комната-коробка)
+  // стены-комната
   const wallMat = new THREE.MeshStandardMaterial({color:0xaaaaaa, side:THREE.BackSide});
   const room = new THREE.Mesh(new THREE.BoxGeometry(20,10,20), wallMat);
   room.position.y = 5;
   scene.add(room);
 
-  // клавиши
+  // обработка клавиш
   document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
@@ -107,7 +111,6 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// адаптив
 window.addEventListener("resize", () => {
   if (camera && renderer) {
     camera.aspect = window.innerWidth/window.innerHeight;
