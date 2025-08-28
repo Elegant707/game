@@ -111,7 +111,7 @@
       scene.add(floor);
       collidableObjects.push(floor);
 
-      // "Кровать" как ориентир
+      // "Кровать"
       const bedGeo = new THREE.BoxGeometry(3, 1, 2);
       const bedMat = new THREE.MeshStandardMaterial({ color: 0x884422 });
       const bed = new THREE.Mesh(bedGeo, bedMat);
@@ -152,12 +152,12 @@
       animate();
     }
 
-    // Функция для создания Box3 столкновения
+    // Создание Box3 для объекта
     function getBoundingBox(object) {
       return new THREE.Box3().setFromObject(object);
     }
 
-    // Проверка коллизии с объектами
+    // Проверка коллизий
     function checkCollisions(newPosition) {
       const playerBox = new THREE.Box3(
         new THREE.Vector3(newPosition.x - 0.3, newPosition.y - 1.6, newPosition.z - 0.3),
@@ -178,9 +178,9 @@
       const speed = 0.1;
       velocity.set(0,0,0);
 
-      // Движение по WASD
-      if (keys["KeyW"]) velocity.z += speed;
-      if (keys["KeyS"]) velocity.z -= speed;
+      // WASD движение
+      if (keys["KeyW"]) velocity.z -= speed;
+      if (keys["KeyS"]) velocity.z += speed;
       if (keys["KeyA"]) velocity.x -= speed;
       if (keys["KeyD"]) velocity.x += speed;
 
@@ -207,12 +207,21 @@
       const right = new THREE.Vector3();
       right.crossVectors(camera.up, direction).normalize().multiplyScalar(-1);
 
-      // Проверяем коллизии и перемещаем игрока
-      const newPosForward = player.position.clone().add(direction.clone().multiplyScalar(velocity.z));
-      if (!checkCollisions(newPosForward)) player.position.copy(newPosForward);
+      // Движение по Z
+      const moveZ = direction.clone().multiplyScalar(velocity.z);
+      const posZ = player.position.clone().add(moveZ);
+      if (!checkCollisions(posZ)) {
+        player.position.x += moveZ.x;
+        player.position.z += moveZ.z;
+      }
 
-      const newPosRight = player.position.clone().add(right.clone().multiplyScalar(velocity.x));
-      if (!checkCollisions(newPosRight)) player.position.copy(newPosRight);
+      // Движение по X
+      const moveX = right.clone().multiplyScalar(velocity.x);
+      const posX = player.position.clone().add(moveX);
+      if (!checkCollisions(posX)) {
+        player.position.x += moveX.x;
+        player.position.z += moveX.z;
+      }
 
       renderer.render(scene, camera);
     }
