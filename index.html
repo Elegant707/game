@@ -83,9 +83,9 @@
       const speed = 0.1;
       velocity.set(0, 0, 0);
 
-      // ✅ правильное управление
-      if (keys["KeyW"]) velocity.z += speed;  
-      if (keys["KeyS"]) velocity.z -= speed;  
+      // ✅ Исправлено: W — вперёд, S — назад
+      if (keys["KeyW"]) velocity.z -= speed;  
+      if (keys["KeyS"]) velocity.z += speed;  
       if (keys["KeyA"]) velocity.x -= speed;
       if (keys["KeyD"]) velocity.x += speed;
 
