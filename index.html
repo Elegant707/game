@@ -39,6 +39,13 @@
       display: none;
     }
     #progress { width: 0%; height: 100%; background: lime; }
+    #info {
+      position: absolute;
+      top: 10px; left: 10px;
+      color: white;
+      font-size: 14px;
+      z-index: 5;
+    }
   </style>
 </head>
 <body>
@@ -47,12 +54,14 @@
     <button class="btn">Настройки</button>
     <div id="loading"><div id="progress"></div></div>
   </div>
+  <div id="info">WASD — движение, мышь — обзор, Esc — меню</div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
   <script>
     let scene, camera, renderer;
     let keys = {};
-    let player;
+    let player, controls;
+    let velocity = new THREE.Vector3();
 
     document.getElementById("newGame").addEventListener("click", () => {
       document.getElementById("loading").style.display = "block";
@@ -87,7 +96,7 @@
       const room = new THREE.Mesh(roomGeo, roomMat);
       scene.add(room);
 
-      // Пол для ориентира
+      // Пол
       const floorGeo = new THREE.PlaneGeometry(20, 20);
       const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
       const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -95,14 +104,42 @@
       floor.position.y = -roomSize / 2 + 0.01;
       scene.add(floor);
 
+      // "Кровать" как ориентир
+      const bedGeo = new THREE.BoxGeometry(3, 1, 2);
+      const bedMat = new THREE.MeshStandardMaterial({ color: 0x884422 });
+      const bed = new THREE.Mesh(bedGeo, bedMat);
+      bed.position.set(0, -roomSize/2 + 0.5, -3);
+      scene.add(bed);
+
       // Игрок
       player = new THREE.Object3D();
       player.position.set(0, 1.6, 5);
       player.add(camera);
       scene.add(player);
 
-      document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
-      document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+      // Управление мышью
+      renderer.domElement.requestPointerLock =
+        renderer.domElement.requestPointerLock ||
+        renderer.domElement.mozRequestPointerLock;
+      document.body.addEventListener("click", () => {
+        renderer.domElement.requestPointerLock();
+      });
+
+      let euler = new THREE.Euler(0, 0, 0, "YXZ");
+      document.addEventListener("mousemove", (event) => {
+        if (document.pointerLockElement === renderer.domElement) {
+          const movementX = event.movementX || 0;
+          const movementY = event.movementY || 0;
+          euler.setFromQuaternion(camera.quaternion);
+          euler.y -= movementX * 0.002;
+          euler.x -= movementY * 0.002;
+          euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, euler.x));
+          camera.quaternion.setFromEuler(euler);
+        }
+      });
+
+      document.addEventListener("keydown", e => keys[e.code] = true);
+      document.addEventListener("keyup", e => keys[e.code] = false);
 
       animate();
     }
@@ -110,11 +147,25 @@
     function animate() {
       requestAnimationFrame(animate);
 
-      const speed = 0.1; // скорость движения
-      if (keys["w"]) player.position.z -= speed;
-      if (keys["s"]) player.position.z += speed;
-      if (keys["a"]) player.position.x -= speed;
-      if (keys["d"]) player.position.x += speed;
+      const speed = 0.1;
+      velocity.set(0,0,0);
+
+      if (keys["KeyW"]) velocity.z -= speed;
+      if (keys["KeyS"]) velocity.z += speed;
+      if (keys["KeyA"]) velocity.x -= speed;
+      if (keys["KeyD"]) velocity.x += speed;
+
+      // направление относительно камеры
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      direction.y = 0;
+      direction.normalize();
+
+      const right = new THREE.Vector3();
+      right.crossVectors(camera.up, direction).normalize().multiplyScalar(-1);
+
+      player.position.addScaledVector(direction, velocity.z);
+      player.position.addScaledVector(right, velocity.x);
 
       renderer.render(scene, camera);
     }
