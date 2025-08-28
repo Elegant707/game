@@ -2,136 +2,126 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>3D Игра</title>
+<title>3D Прототип Игры</title>
 <style>
-body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
-#menu { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; }
-.btn { padding:15px 40px; margin:10px; font-size:24px; color:white; background:#222; border:2px solid #0f0; cursor:pointer; transition:0.3s; }
-.btn:hover { background:#0f0; color:black; }
-#loading { position:absolute; bottom:50px; left:50%; transform:translateX(-50%); width:300px; height:20px; border:2px solid white; background:#222; display:none; }
-#progress { width:0%; height:100%; background:lime; }
-#info { position:absolute; top:10px; left:10px; color:white; font-size:14px; z-index:5; }
+  body { margin: 0; overflow: hidden; background: #87ceeb; }
+  canvas { display: block; }
 </style>
 </head>
 <body>
-<div id="menu">
-  <button class="btn" id="newGame">Новая игра</button>
-  <button class="btn">Настройки</button>
-  <div id="loading"><div id="progress"></div></div>
-</div>
-<div id="info">WASD — движение, мышь — обзор, Space — прыжок, Esc — меню</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.157.0/examples/js/objects/Water.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
 <script>
-let scene, camera, renderer;
-let keys = {};
-let player, verticalSpeed=0, canJump=true;
-let collidableObjects = [];
+// === Сцена и камера ===
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
 
-document.getElementById("newGame").addEventListener("click", ()=>{
-  document.getElementById("loading").style.display="block";
-  let progress=0;
-  let interval = setInterval(()=>{
-    progress+=5;
-    document.getElementById("progress").style.width=progress+"%";
-    if(progress>=100){ clearInterval(interval); startGame(); document.getElementById("menu").style.display="none"; }
-  },100);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 5, 10);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// === Контроллы камеры ===
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enablePan = false;
+
+// === Освещение ===
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(10,20,10);
+scene.add(directionalLight);
+
+// === Игрок (куб) ===
+const playerGeo = new THREE.BoxGeometry(1,1,1);
+const playerMat = new THREE.MeshStandardMaterial({color:0xff0000});
+const player = new THREE.Mesh(playerGeo, playerMat);
+player.position.y = 0.5;
+scene.add(player);
+
+// === Пол ===
+const planeGeo = new THREE.PlaneGeometry(50,50);
+const planeMat = new THREE.MeshStandardMaterial({color:0x228B22});
+const plane = new THREE.Mesh(planeGeo, planeMat);
+plane.rotation.x = -Math.PI/2;
+scene.add(plane);
+
+// === Вода ===
+const waterGeometry = new THREE.PlaneGeometry(50,50);
+const water = new THREE.Water(waterGeometry, {
+    color: 0x001e0f,
+    scale: 1,
+    flowDirection: new THREE.Vector2(1,1),
+    textureWidth: 512,
+    textureHeight: 512
 });
+water.rotation.x = -Math.PI/2;
+water.position.y = 0;
+scene.add(water);
 
-function startGame(){
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1,1000);
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
-
-  const light = new THREE.HemisphereLight(0xffffff,0x444444,1);
-  scene.add(light);
-
-  const roomGeo = new THREE.BoxGeometry(20,20,20);
-  const roomMat = new THREE.MeshStandardMaterial({color:0x4444ff, side:THREE.BackSide});
-  const room = new THREE.Mesh(roomGeo, roomMat);
-  scene.add(room);
-
-  const floorGeo = new THREE.PlaneGeometry(20,20);
-  const floorMat = new THREE.MeshStandardMaterial({color:0x222222});
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI/2; floor.position.y=-9.99;
-  scene.add(floor);
-  collidableObjects.push(floor);
-
-  const bedGeo = new THREE.BoxGeometry(3,1,2);
-  const bedMat = new THREE.MeshStandardMaterial({color:0x884422});
-  const bed = new THREE.Mesh(bedGeo, bedMat);
-  bed.position.set(0,-9.5,-3);
-  scene.add(bed);
-  collidableObjects.push(bed);
-
-  player = new THREE.Object3D();
-  player.position.set(0,1.6,5);
-  player.add(camera);
-  scene.add(player);
-
-  renderer.domElement.requestPointerLock = renderer.domElement.requestPointerLock || renderer.domElement.mozRequestPointerLock;
-  document.body.addEventListener("click", ()=>{ renderer.domElement.requestPointerLock(); });
-
-  let euler = new THREE.Euler(0,0,0,"YXZ");
-  document.addEventListener("mousemove",(event)=>{
-    if(document.pointerLockElement===renderer.domElement){
-      euler.setFromQuaternion(camera.quaternion);
-      euler.y -= (event.movementX||0)*0.002;
-      euler.x -= (event.movementY||0)*0.002;
-      euler.x = Math.max(-Math.PI/2, Math.min(Math.PI/2,euler.x));
-      camera.quaternion.setFromEuler(euler);
-    }
-  });
-
-  document.addEventListener("keydown", e=>keys[e.code]=true);
-  document.addEventListener("keyup", e=>keys[e.code]=false);
-
-  animate();
+// === Частицы огня ===
+const fireParticles = [];
+const fireGeo = new THREE.SphereGeometry(0.1,8,8);
+const fireMat = new THREE.MeshBasicMaterial({color:0xff6600});
+for(let i=0;i<50;i++){
+    const p = new THREE.Mesh(fireGeo, fireMat);
+    p.position.set(Math.random()*4-2,0.1,Math.random()*4-2);
+    scene.add(p);
+    fireParticles.push(p);
 }
 
-function isColliding(newPos){
-  for(let obj of collidableObjects){
-    const minX=obj.position.x-obj.scale.x/2, maxX=obj.position.x+obj.scale.x/2;
-    const minZ=obj.position.z-obj.scale.z/2, maxZ=obj.position.z+obj.scale.z/2;
-    if(newPos.x>minX-0.3 && newPos.x<maxX+0.3 && newPos.z>minZ-0.3 && newPos.z<maxZ+0.3) return true;
-  }
-  return false;
-}
+// === Движение игрока ===
+const keys = { w:false,a:false,s:false,d:false,Shift:false,Space:false,Control:false };
+document.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key)) keys[e.key]=true; });
+document.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key)) keys[e.key]=false; });
+
+let velocityY = 0;
+const speed = 0.1, jumpPower=0.2, gravity=0.01;
 
 function animate(){
-  requestAnimationFrame(animate);
-  const speed=0.1;
-  let moveX=0, moveZ=0;
-  if(keys["KeyW"]) moveZ += speed;
-  if(keys["KeyS"]) moveZ -= speed;
-  if(keys["KeyA"]) moveX -= speed;
-  if(keys["KeyD"]) moveX += speed;
+    requestAnimationFrame(animate);
 
-  if(keys["Space"] && canJump){ verticalSpeed=0.2; canJump=false; }
-  player.position.y += verticalSpeed;
-  verticalSpeed -= 0.01;
-  if(player.position.y<1.6){ player.position.y=1.6; verticalSpeed=0; canJump=true; }
+    // === Движение ===
+    let moveSpeed = keys.Shift ? speed*2 : speed;
+    if(keys.w) player.position.z -= moveSpeed;
+    if(keys.s) player.position.z += moveSpeed;
+    if(keys.a) player.position.x -= moveSpeed;
+    if(keys.d) player.position.x += moveSpeed;
 
-  const forward = new THREE.Vector3(); camera.getWorldDirection(forward); forward.y=0; forward.normalize();
-  const right = new THREE.Vector3(); right.copy(forward).cross(new THREE.Vector3(0,1,0)).normalize();
+    // Прыжки и присед
+    if(keys.Space && player.position.y<=0.5) velocityY = jumpPower;
+    if(keys.Control) player.scale.y = 0.5; else player.scale.y=1;
+    velocityY -= gravity;
+    player.position.y += velocityY;
+    if(player.position.y<0.5){ player.position.y=0.5; velocityY=0; }
 
-  let nextPosZ = player.position.clone().add(forward.clone().multiplyScalar(moveZ));
-  if(!isColliding(nextPosZ)){ player.position.x=nextPosZ.x; player.position.z=nextPosZ.z; }
+    // Камера следует за игроком
+    camera.position.x = player.position.x + 5;
+    camera.position.z = player.position.z + 10;
+    camera.lookAt(player.position);
 
-  let nextPosX = player.position.clone().add(right.clone().multiplyScalar(moveX));
-  if(!isColliding(nextPosX)){ player.position.x=nextPosX.x; player.position.z=nextPosX.z; }
+    // Обновляем воду
+    water.material.uniforms['time'].value += 1.0/60.0;
 
-  renderer.render(scene,camera);
+    // Анимация огня
+    fireParticles.forEach(p=>{
+        p.position.y += 0.02;
+        if(p.position.y>2) p.position.y=0.1;
+    });
+
+    renderer.render(scene,camera);
 }
+animate();
 
-window.addEventListener("resize", ()=>{
-  if(!camera || !renderer) return;
-  camera.aspect=window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// === Подстройка под размер окна ===
+window.addEventListener('resize', ()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 });
 </script>
 </body>
