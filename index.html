@@ -2,54 +2,146 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Тест 3D</title>
+  <title>3D Игра</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    canvas { display: block; }
+    body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+
+    /* Меню */
+    #menu {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    .btn {
+      padding: 15px 40px;
+      margin: 10px;
+      font-size: 24px;
+      color: white;
+      background: #222;
+      border: 2px solid #0f0;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .btn:hover {
+      background: #0f0;
+      color: black;
+    }
+
+    /* Прогресс-бар загрузки */
+    #loading {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 300px;
+      height: 20px;
+      border: 2px solid white;
+      background: #222;
+      display: none;
+    }
+    #progress {
+      width: 0%;
+      height: 100%;
+      background: lime;
+    }
   </style>
 </head>
 <body>
+  <div id="menu">
+    <button class="btn" id="newGame">Новая игра</button>
+    <button class="btn">Настройки</button>
+    <div id="loading"><div id="progress"></div></div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
   <script>
-    // Сцена
-    const scene = new THREE.Scene();
+    let scene, camera, renderer;
+    let keys = {};
+    let player;
 
-    // Камера
-    const camera = new THREE.PerspectiveCamera(
-      75, 
-      window.innerWidth / window.innerHeight, 
-      0.1, 
-      1000
-    );
-    camera.position.z = 5;
+    // Запуск игры
+    document.getElementById("newGame").addEventListener("click", () => {
+      document.getElementById("loading").style.display = "block";
 
-    // Рендер
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+      let progress = 0;
+      let interval = setInterval(() => {
+        progress += 5;
+        document.getElementById("progress").style.width = progress + "%";
 
-    // Куб
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+        if (progress >= 100) {
+          clearInterval(interval);
+          startGame();
+          document.getElementById("menu").style.display = "none";
+        }
+      }, 100); // 100мс шаг → 2 секунды загрузка
+    });
 
-    // Свет
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(1, 1, 2).normalize();
-    scene.add(light);
+    function startGame() {
+      // Сцена
+      scene = new THREE.Scene();
 
-    // Анимация
+      // Камера
+      camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(0, 1.6, 5); // рост игрока ~1.6м
+
+      // Рендер
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Свет
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+      scene.add(light);
+
+      // Комната (коробка)
+      const roomSize = 10;
+      const roomGeo = new THREE.BoxGeometry(roomSize, roomSize, roomSize);
+      const roomMat = new THREE.MeshStandardMaterial({
+        color: 0x4444ff,
+        side: THREE.BackSide
+      });
+      const room = new THREE.Mesh(roomGeo, roomMat);
+      scene.add(room);
+
+      // "Игрок"
+      player = new THREE.Object3D();
+      player.add(camera);
+      scene.add(player);
+
+      // Управление клавишами
+      document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
+      document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+
+      animate();
+    }
+
     function animate() {
       requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
+
+      // Скорость движения
+      const speed = 0.05;
+      if (keys["w"]) player.position.z -= speed;
+      if (keys["s"]) player.position.z += speed;
+      if (keys["a"]) player.position.x -= speed;
+      if (keys["d"]) player.position.x += speed;
+
       renderer.render(scene, camera);
     }
-    animate();
 
-    // Масштаб при изменении окна
+    // Масштаб окна
     window.addEventListener("resize", () => {
+      if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
