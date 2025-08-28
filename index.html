@@ -42,12 +42,19 @@
       border-radius: 12px;
       overflow: hidden;
       display: none;
+      z-index: 10;
     }
     #progress {
       height: 100%;
       width: 0%;
       background: linear-gradient(90deg, #4CAF50, #8BC34A);
       transition: width 0.2s;
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      display: none;
     }
     canvas { display: block; }
   </style>
@@ -62,6 +69,8 @@
 <div id="loading">
   <div id="progress"></div>
 </div>
+
+<div id="canvas-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
 
@@ -80,47 +89,56 @@ function startLoading() {
   const bar = document.getElementById("progress");
 
   const interval = setInterval(() => {
-    progress += 5; // наращиваем по 5%
+    progress += 5;
     bar.style.width = progress + "%";
 
     if (progress >= 100) {
       clearInterval(interval);
       document.getElementById("loading").style.display = "none";
+      document.getElementById("canvas-container").style.display = "block";
       startGame();
     }
-  }, 100); // каждые 100мс (1 секунда = +50%)
+  }, 100);
 }
 
 function startGame() {
+  // контейнер для канваса
+  const container = document.getElementById("canvas-container");
+
   // сцена
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x999999);
 
   // камера
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(
+    75, 
+    window.innerWidth / window.innerHeight, 
+    0.1, 
+    1000
+  );
   camera.position.set(0, 1.6, 5);
 
   // рендер
   renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
+  container.appendChild(renderer.domElement);
 
   // свет
-  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
 
-  const pointLight = new THREE.PointLight(0xffffff, 1, 30);
+  const pointLight = new THREE.PointLight(0xffffff, 1, 50);
   pointLight.position.set(0, 5, 0);
   scene.add(pointLight);
 
   // пол
-  const floorGeo = new THREE.PlaneGeometry(20,20);
+  const floorGeo = new THREE.PlaneGeometry(20, 20);
   const floorMat = new THREE.MeshStandardMaterial({color:0x777777});
   const floor = new THREE.Mesh(floorGeo, floorMat);
   floor.rotation.x = -Math.PI/2;
   scene.add(floor);
 
-  // стены
+  // стены-комната
   const wallMat = new THREE.MeshStandardMaterial({color:0xaaaaaa, side:THREE.BackSide});
   const room = new THREE.Mesh(new THREE.BoxGeometry(20,10,20), wallMat);
   room.position.y = 5;
