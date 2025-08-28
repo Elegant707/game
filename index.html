@@ -29,6 +29,26 @@
       transform: scale(1.1);
       background: linear-gradient(135deg, #66BB6A, #388E3C);
     }
+
+    /* экран загрузки */
+    #loading {
+      position: absolute;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 25px;
+      background: #333;
+      border-radius: 12px;
+      overflow: hidden;
+      display: none;
+    }
+    #progress {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4CAF50, #8BC34A);
+      transition: width 0.2s;
+    }
     canvas { display: block; }
   </style>
 </head>
@@ -39,6 +59,10 @@
   <button id="settings">Настройки</button>
 </div>
 
+<div id="loading">
+  <div id="progress"></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.min.js"></script>
 
 <script>
@@ -47,8 +71,25 @@ let keys = {};
 
 document.getElementById("newGame").onclick = () => {
   document.getElementById("menu").style.display = "none";
-  startGame();
+  document.getElementById("loading").style.display = "block";
+  startLoading();
 };
+
+function startLoading() {
+  let progress = 0;
+  const bar = document.getElementById("progress");
+
+  const interval = setInterval(() => {
+    progress += 5; // наращиваем по 5%
+    bar.style.width = progress + "%";
+
+    if (progress >= 100) {
+      clearInterval(interval);
+      document.getElementById("loading").style.display = "none";
+      startGame();
+    }
+  }, 100); // каждые 100мс (1 секунда = +50%)
+}
 
 function startGame() {
   // сцена
@@ -57,20 +98,16 @@ function startGame() {
 
   // камера
   camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 1.6, 5); // глаза игрока
+  camera.position.set(0, 1.6, 5);
 
   // рендер
   renderer = new THREE.WebGLRenderer({antialias:true});
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // 🔥 СВЕТ
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6); // общий свет
+  // свет
+  const ambient = new THREE.AmbientLight(0xffffff, 0.8);
   scene.add(ambient);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(5, 10, 7);
-  scene.add(dirLight);
 
   const pointLight = new THREE.PointLight(0xffffff, 1, 30);
   pointLight.position.set(0, 5, 0);
@@ -83,20 +120,19 @@ function startGame() {
   floor.rotation.x = -Math.PI/2;
   scene.add(floor);
 
-  // стены-комната
+  // стены
   const wallMat = new THREE.MeshStandardMaterial({color:0xaaaaaa, side:THREE.BackSide});
   const room = new THREE.Mesh(new THREE.BoxGeometry(20,10,20), wallMat);
   room.position.y = 5;
   scene.add(room);
 
-  // обработка клавиш
+  // управление
   document.addEventListener("keydown", e => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
   animate();
 }
 
-// движение игрока
 function movePlayer() {
   const speed = 0.1;
   if (keys["w"]) camera.position.z -= speed;
@@ -108,7 +144,9 @@ function movePlayer() {
 function animate() {
   requestAnimationFrame(animate);
   movePlayer();
-  renderer.render(scene, camera);
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera);
+  }
 }
 
 window.addEventListener("resize", () => {
