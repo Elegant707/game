@@ -54,14 +54,16 @@
     <button class="btn">Настройки</button>
     <div id="loading"><div id="progress"></div></div>
   </div>
-  <div id="info">WASD — движение, мышь — обзор, Esc — меню</div>
+  <div id="info">WASD — движение, мышь — обзор, Space — прыжок, Esc — меню</div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
   <script>
     let scene, camera, renderer;
     let keys = {};
-    let player, controls;
+    let player;
     let velocity = new THREE.Vector3();
+    let verticalSpeed = 0;
+    let canJump = true;
 
     document.getElementById("newGame").addEventListener("click", () => {
       document.getElementById("loading").style.display = "block";
@@ -150,10 +152,28 @@
       const speed = 0.1;
       velocity.set(0,0,0);
 
+      // Движение по WASD
       if (keys["KeyW"]) velocity.z += speed;
       if (keys["KeyS"]) velocity.z -= speed;
       if (keys["KeyA"]) velocity.x -= speed;
       if (keys["KeyD"]) velocity.x += speed;
+
+      // Прыжок
+      if (keys["Space"] && canJump) {
+        verticalSpeed = 0.2; // сила прыжка
+        canJump = false;
+      }
+
+      // Вертикальное движение + гравитация
+      player.position.y += verticalSpeed;
+      verticalSpeed -= 0.01; // гравитация
+
+      // Ограничение пола
+      if (player.position.y < 1.6) { // высота глаз
+        player.position.y = 1.6;
+        verticalSpeed = 0;
+        canJump = true;
+      }
 
       // направление относительно камеры
       const direction = new THREE.Vector3();
