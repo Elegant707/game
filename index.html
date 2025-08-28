@@ -176,8 +176,8 @@
       velocity.set(0,0,0);
 
       // WASD движение
-      if (keys["KeyW"]) velocity.z += speed;
-      if (keys["KeyS"]) velocity.z -= speed;
+      if (keys["KeyW"]) velocity.z -= speed;
+      if (keys["KeyS"]) velocity.z += speed;
       if (keys["KeyA"]) velocity.x -= speed;
       if (keys["KeyD"]) velocity.x += speed;
 
@@ -197,15 +197,16 @@
       }
 
       // Направление относительно камеры
-      const direction = new THREE.Vector3();
-      camera.getWorldDirection(direction);
-      direction.y = 0;
-      direction.normalize();
+      const forward = new THREE.Vector3();
+      camera.getWorldDirection(forward);
+      forward.y = 0;
+      forward.normalize();
+
       const right = new THREE.Vector3();
-      right.crossVectors(camera.up, direction).normalize().multiplyScalar(-1);
+      right.copy(forward).cross(new THREE.Vector3(0,1,0)).normalize(); // правильное направление
 
       // Движение по Z
-      const moveZ = direction.clone().multiplyScalar(velocity.z);
+      const moveZ = forward.clone().multiplyScalar(velocity.z);
       const posZ = player.position.clone().add(moveZ);
       if (!checkCollisions(posZ)) {
         player.position.x += moveZ.x;
